@@ -1,11 +1,22 @@
 // Profile page functionality
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
   // Check if user is logged in
-  const isLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
-  if (!isLoggedIn) {
-    window.location.href = 'login.html';
-    return;
-  }
+  const checkAuth = async () => {
+    try {
+      const res = await fetch('/users/profile', { credentials: 'include' });
+      if (res.status === 401) {
+        window.location.href = 'login.html';
+        return false;
+      }
+      return true;
+    } catch {
+      window.location.href = 'login.html';
+      return false;
+    }
+  };
+
+  const authenticated = await checkAuth();
+  if (!authenticated) return;
 
   const profileForm = document.getElementById('profileForm');
   const photoInput = document.getElementById('photoInput');
@@ -13,7 +24,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Handle photo upload
   if (photoInput) {
-    photoInput.addEventListener('change', async (e) => {
+    photoInput.addEventListener('change', (e) => {
       const file = e.target.files[0];
       if (!file) return;
 
@@ -38,13 +49,12 @@ document.addEventListener('DOMContentLoaded', () => {
       const formData = new FormData();
       formData.append('name', document.getElementById('name').value);
       formData.append('age', document.getElementById('age').value);
-      
-      // Get selected categories
-      const selectedCategories = Array.from(document.querySelectorAll('input[name="categories"]:checked'))
-        .map(checkbox => checkbox.value);
+
+      const selectedCategories = Array.from(
+        document.querySelectorAll('input[name="categories"]:checked')
+      ).map(checkbox => checkbox.value);
       formData.append('categories', JSON.stringify(selectedCategories));
 
-      // Add photo if changed
       if (photoInput && photoInput.files[0]) {
         formData.append('photo', photoInput.files[0]);
       }
@@ -76,24 +86,19 @@ document.addEventListener('DOMContentLoaded', () => {
       const response = await fetch('/users/profile', {
         credentials: 'include' // Include cookies for session
       });
-      
+
       if (response.ok) {
         const userData = await response.json();
-        
-        // Populate form fields
+
         if (document.getElementById('name')) {
           document.getElementById('name').value = userData.name || '';
         }
         if (document.getElementById('age')) {
           document.getElementById('age').value = userData.age || '';
         }
-        
-        // Set profile photo if exists
         if (profilePhoto && userData.photoUrl) {
           profilePhoto.src = userData.photoUrl;
         }
-        
-        // Check categories
         if (userData.categories) {
           userData.categories.forEach(category => {
             const checkbox = document.querySelector(`input[value="${category}"]`);
@@ -109,7 +114,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   };
 
-  // Load user data when page loads
+  // Load user data after confirming authentication
   loadUserData();
 
   // Handle logout
